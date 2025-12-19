@@ -8,6 +8,7 @@ faiss-cpu>=1.7.4
 fastapi
 uvicorn[standard]
 sentence-transformers
+pypdf
 
 scikit-learn
 scipy
