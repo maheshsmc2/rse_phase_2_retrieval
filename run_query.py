@@ -9,6 +9,9 @@ from retriever import dense_search, hybrid_search, hybrid_then_rerank
 DEFAULT_MIN_SCORE = 0.0  # inspect score scale first; then set per route if needed
 MIN_SCORE_MARGIN = 0.05  # Day 68: dominance gap (top1 - top2)
 
+# Day 69: reranker scores (logits) are often uncalibrated/negative → use dominance more
+RERANK_MIN_MARGIN = 0.10  # stronger dominance for rerank routes
+
 FALLBACK_MESSAGE = (
     "I couldn't find strong enough evidence in the documents to answer confidently."
 )
@@ -65,7 +68,7 @@ def _unwrap_results(result):
 
 def _extract_top_score(result):
     """
-    Works with output format used in retriever.py (list[dict] with 'score').
+    Works with list[dict] with 'score'.
     Also supports dict wrappers with keys like 'hits'/'results'/'documents'/'docs'.
     """
     items = _unwrap_results(result)
@@ -96,6 +99,10 @@ def _extract_top2_scores(result):
         return float(s1), float(s2)
     except Exception:
         return None, None
+
+
+def _is_rerank_route(route_name: str) -> bool:
+    return "rerank" in (route_name or "").lower()
 
 
 def _wrap(query: str, route_name: str, out, passed: bool, best_score, min_score):
@@ -190,14 +197,18 @@ def _extract_evidence_preview(results, n: int = 2):
 def _gate_if_low_confidence(query: str, result, min_score: float, debug: bool, route_name: str):
     """
     Always returns a standard envelope dict.
-    If best score < min_score, sets answer to fallback and passed_confidence_gate=False,
-    plus Day 67: suggested_queries + how_to_improve + evidence preview.
-    Day 68: margin gate using top1-top2 dominance.
+
+    Gates:
+    - Day 67: Absolute gate (best_score >= min_score) for non-rerank routes
+    - Day 68: Margin gate (top1 - top2 >= MIN_SCORE_MARGIN)
+    - Day 69: For rerank routes, skip absolute gate (scores are uncalibrated/negative) and
+             apply a stronger margin requirement (RERANK_MIN_MARGIN).
     """
     best_score = _extract_top_score(result)
+    is_rerank = _is_rerank_route(route_name)
 
-    # Gate OFF
-    if min_score is None or float(min_score) <= 0:
+    # Gate OFF (only for non-rerank routes)
+    if (min_score is None or float(min_score) <= 0) and (not is_rerank):
         if debug:
             print(f"[DAY67][{route_name}] Gate OFF (min_score={min_score}). Returning results without gating.")
         env = _wrap(query, route_name, result, True, best_score, min_score)
@@ -208,7 +219,7 @@ def _gate_if_low_confidence(query: str, result, min_score: float, debug: bool, r
     if best_score is None:
         if debug:
             print(f"[DAY67][{route_name}] No 'score' found; treating as low confidence.")
-        env = _wrap(query, route_name, result, False, best_score, float(min_score))
+        env = _wrap(query, route_name, result, False, best_score, float(min_score) if min_score is not None else None)
         env["answer"] = FALLBACK_MESSAGE
         env["reason"] = "No score found in results"
         env["suggested_queries"] = _suggested_queries(query)
@@ -222,7 +233,7 @@ def _gate_if_low_confidence(query: str, result, min_score: float, debug: bool, r
     except Exception:
         if debug:
             print(f"[DAY67][{route_name}] Non-numeric score={best_score}; treating as low confidence.")
-        env = _wrap(query, route_name, result, False, best_score, float(min_score))
+        env = _wrap(query, route_name, result, False, best_score, float(min_score) if min_score is not None else None)
         env["answer"] = FALLBACK_MESSAGE
         env["reason"] = "Non-numeric score in results"
         env["suggested_queries"] = _suggested_queries(query)
@@ -230,31 +241,36 @@ def _gate_if_low_confidence(query: str, result, min_score: float, debug: bool, r
         env["evidence_preview"] = _extract_evidence_preview(result, n=1)
         return env
 
-    # Compare with threshold (absolute gate)
-    if best_score_f < float(min_score):
+    # ----------------------------
+    # Day 67: Absolute gate (non-rerank only)
+    # ----------------------------
+    if (not is_rerank) and (min_score is not None) and (best_score_f < float(min_score)):
         if debug:
-            print(f"[DAY67][{route_name}] NO_ANSWER. best_score={best_score_f:.4f} < min_score={float(min_score):.4f}")
+            print(
+                f"[DAY67][{route_name}] NO_ANSWER. best_score={best_score_f:.4f} < min_score={float(min_score):.4f}"
+            )
         env = _wrap(query, route_name, result, False, best_score_f, float(min_score))
         env["answer"] = FALLBACK_MESSAGE
         env["reason"] = "Not enough information found"
         env["suggested_queries"] = _suggested_queries(query)
         env["how_to_improve"] = HOW_TO_IMPROVE
-        env["evidence_preview"] = _extract_evidence_preview(result, n=1)  # show top-1 even if weak
+        env["evidence_preview"] = _extract_evidence_preview(result, n=1)
         return env
 
     # ----------------------------
-    # Day 68: margin gate (dominance)
+    # Day 68/69: Margin gate (dominance)
     # ----------------------------
     top1, top2 = _extract_top2_scores(result)
     if top1 is not None and top2 is not None:
         margin = top1 - top2
-        if margin < float(MIN_SCORE_MARGIN):
+        min_margin = float(RERANK_MIN_MARGIN) if is_rerank else float(MIN_SCORE_MARGIN)
+
+        if margin < min_margin:
             if debug:
                 print(
-                    f"[DAY68][{route_name}] NO_ANSWER. "
-                    f"margin={margin:.4f} < MIN_SCORE_MARGIN={MIN_SCORE_MARGIN}"
+                    f"[DAY69][{route_name}] NO_ANSWER. margin={margin:.4f} < min_margin={min_margin:.4f}"
                 )
-            env = _wrap(query, route_name, result, False, top1, float(min_score))
+            env = _wrap(query, route_name, result, False, top1, float(min_score) if min_score is not None else None)
             env["answer"] = FALLBACK_MESSAGE
             env["reason"] = "Low score dominance (ambiguous match)"
             env["suggested_queries"] = _suggested_queries(query)
@@ -266,14 +282,23 @@ def _gate_if_low_confidence(query: str, result, min_score: float, debug: bool, r
     # PASS
     if debug:
         if top1 is not None and top2 is not None:
+            min_margin = float(RERANK_MIN_MARGIN) if is_rerank else float(MIN_SCORE_MARGIN)
             print(
-                f"[DAY68][{route_name}] PASS. best_score={best_score_f:.4f} >= min_score={float(min_score):.4f} "
-                f"| margin={(top1-top2):.4f} (MIN_SCORE_MARGIN={MIN_SCORE_MARGIN})"
+                f"[DAY69][{route_name}] PASS. best_score={best_score_f:.4f} "
+                f"| margin={(top1-top2):.4f} (min_margin={min_margin:.4f}) "
+                f"| is_rerank={is_rerank}"
             )
         else:
-            print(f"[DAY67][{route_name}] PASS. best_score={best_score_f:.4f} >= min_score={float(min_score):.4f}")
+            print(f"[DAY69][{route_name}] PASS. best_score={best_score_f:.4f} | is_rerank={is_rerank}")
 
-    env = _wrap(query, route_name, result, True, best_score_f, float(min_score))
+    env = _wrap(
+        query,
+        route_name,
+        result,
+        True,
+        best_score_f,
+        float(min_score) if min_score is not None else None,
+    )
     env["evidence_preview"] = _extract_evidence_preview(result, n=2)
     if top1 is not None and top2 is not None:
         env["score_margin"] = float(top1 - top2)
@@ -302,9 +327,9 @@ def run_query(
     if debug:
         print("\n" + "=" * 60)
         print(
-            f"[DAY68] query='{query}' | q_type='{q_type}' | "
+            f"[DAY69] query='{query}' | q_type='{q_type}' | "
             f"top_k={top_k} | alpha={alpha} | use_reranker={use_reranker} | "
-            f"min_score={min_score} | MIN_SCORE_MARGIN={MIN_SCORE_MARGIN}"
+            f"min_score={min_score} | MIN_SCORE_MARGIN={MIN_SCORE_MARGIN} | RERANK_MIN_MARGIN={RERANK_MIN_MARGIN}"
         )
 
     # Route A: definition → dense only
@@ -347,7 +372,14 @@ if __name__ == "__main__":
     for q in tests:
         print(q, "=>", classify_query(q))
         out = run_query(q, top_k=3, alpha=0.2, use_reranker=True, min_score=0.35, debug=True)
-        print("PASSED:", out.get("passed_confidence_gate"), "| BEST_SCORE:", out.get("best_score"), "| MARGIN:", out.get("score_margin"))
+        print(
+            "PASSED:",
+            out.get("passed_confidence_gate"),
+            "| BEST_SCORE:",
+            out.get("best_score"),
+            "| MARGIN:",
+            out.get("score_margin"),
+        )
         print("REASON:", out.get("reason"))
         print("SUGGESTED:", out.get("suggested_queries"))
         print("EVIDENCE:", out.get("evidence_preview"))
