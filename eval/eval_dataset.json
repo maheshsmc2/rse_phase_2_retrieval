@@ -1,5 +1,37 @@
 [
-  { "id": "Q1", "query": "What is the probation period?", "expected_ids": ["c11", "c1", "c2"] },
-  { "id": "Q2", "query": "Is medical leave allowed during probation?", "expected_ids": ["c2", "c1", "c11"] },
-  { "id": "Q3", "query": "How many days notice is required for resignation?", "expected_ids": ["c2", "c9", "c1", "c0", "c3"] }
+  {
+    "id": "Q1",
+    "query": "What is the probation period?",
+    "expected_ids": ["c11", "c1", "c2"],
+    "type": "normal",
+    "expected_outcome": "ANSWERED"
+  },
+  {
+    "id": "Q2",
+    "query": "Is medical leave allowed during probation?",
+    "expected_ids": ["c2", "c1", "c11"],
+    "type": "normal",
+    "expected_outcome": "ANSWERED"
+  },
+  {
+    "id": "Q3",
+    "query": "How many days notice is required for resignation?",
+    "expected_ids": ["c2", "c9", "c1", "c0", "c3"],
+    "type": "normal",
+    "expected_outcome": "ANSWERED"
+  },
+  {
+    "id": "Q4",
+    "query": "Can employees work remotely during probation?",
+    "expected_ids": [],
+    "type": "unanswerable",
+    "expected_outcome": "ABSTAIN_LOW_CONF"
+  },
+  {
+    "id": "Q5",
+    "query": "What is the dress code during probation?",
+    "expected_ids": [],
+    "type": "unanswerable",
+    "expected_outcome": "ABSTAIN_LOW_CONF"
+  }
 ]
