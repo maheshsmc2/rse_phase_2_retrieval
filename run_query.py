@@ -10,7 +10,7 @@ DEFAULT_MIN_SCORE = 0.0  # inspect score scale first; then set per route if need
 MIN_SCORE_MARGIN = 0.05  # Day 68: dominance gap (top1 - top2)
 
 # Day 69: reranker scores (logits) are often uncalibrated/negative → use dominance more
-RERANK_MIN_MARGIN = 0.10  # stronger dominance for rerank routes
+RERANK_MIN_MARGIN = 0.35 # stronger dominance for rerank routes
 
 FALLBACK_MESSAGE = (
     "I couldn't find strong enough evidence in the documents to answer confidently."
@@ -107,11 +107,12 @@ def _is_rerank_route(route_name: str) -> bool:
 
 def _wrap(query: str, route_name: str, out, passed: bool, best_score, min_score):
     """
-    Stable return envelope so downstream code (API / generator) never breaks.
+    Stable return envelope so downstream code (API / evaluator) never breaks.
     """
     return {
         "query": query,
         "route": route_name,
+        "decision": "ANSWER" if passed else "ABSTAIN",
         "passed_confidence_gate": passed,
         "best_score": best_score,
         "min_score": min_score,
@@ -192,8 +193,72 @@ def _extract_evidence_preview(results, n: int = 2):
         )
 
     return previews
+def _has_required_anchor(query: str, evidence_text: str) -> bool:
+    q = query.lower()
+    text = evidence_text.lower()
+
+    # Define anchors dynamically
+    anchors = []
+    if "remote" in q:
+        anchors += ["remote", "work from home", "wfh"]
+    if "probation" in q:
+        anchors += ["probation"]
+    if "leave" in q:
+        anchors += ["leave", "medical", "sick"]
+    if "notice" in q:
+        anchors += ["notice", "days", "period"]
+
+    # If no anchors inferred, do not block
+    if not anchors:
+        return True
+
+    return any(a in text for a in anchors)
 
 
+def _build_answer_no_llm(results, max_chars: int = 600) -> str:
+    """
+    Deterministic answer: return the top chunk text (trimmed) + source id.
+    This is enough for Day 104 wiring and will make Precision@1 non-zero if
+    your expected_answer is actually present in the top chunk.
+    """
+    items = _unwrap_results(results)
+    if not isinstance(items, list) or not items:
+        return ""
+
+    top = items[0] if isinstance(items[0], dict) else None
+    if not top:
+        return ""
+
+    text = (top.get("text") or top.get("chunk") or top.get("content") or "").strip()
+    doc_id = top.get("doc_id") or top.get("id") or top.get("source_id") or "unknown"
+
+    if not text:
+        return ""
+        # Day 113: CONTENT_MIXING fix (intern vs employee)
+    low = text.lower().replace("\n", " ")
+
+    if "intern" in low:
+        # Try to extract the intern-specific limit (e.g., "up to 1 day per week")
+        import re
+
+        m = re.search(r"interns?[^.]*?(up to\s+\d+\s+day[s]?\s+per\s+week)", low)
+        if m:
+            text = f"Interns may work from home {m.group(1)}."
+        else:
+            # Fallback: keep only sentences that mention interns
+            sents = [s.strip() for s in low.split(".") if s.strip()]
+            intern_sents = [s for s in sents if "intern" in s]
+            if intern_sents:
+                text = ". ".join(intern_sents).strip() + "."
+
+
+    text = text[:max_chars]
+    return f"{text}\n\nSource: {doc_id}"
+
+
+# ----------------------------
+# Day 67–69: Confidence Gate
+# ----------------------------
 def _gate_if_low_confidence(query: str, result, min_score: float, debug: bool, route_name: str):
     """
     Always returns a standard envelope dict.
@@ -207,34 +272,64 @@ def _gate_if_low_confidence(query: str, result, min_score: float, debug: bool, r
     best_score = _extract_top_score(result)
     is_rerank = _is_rerank_route(route_name)
 
-    # Gate OFF (only for non-rerank routes)
+    # Gate OFF (only for non-rerank routes) — treat as PASS, but still build answer
     if (min_score is None or float(min_score) <= 0) and (not is_rerank):
         if debug:
             print(f"[DAY67][{route_name}] Gate OFF (min_score={min_score}). Returning results without gating.")
         env = _wrap(query, route_name, result, True, best_score, min_score)
         env["evidence_preview"] = _extract_evidence_preview(result, n=2)
+
+        ans = _build_answer_no_llm(result)
+        evidence_text = ans.lower() if ans else ""
+
+        ans = _build_answer_no_llm(result)
+
+        # NEW: use raw evidence, not synthesized answer
+        evidence_text = " ".join(
+            r.get("text", "") for r in (result or [])
+        ).lower()
+        if True:
+
+            print("\n[ANCHOR DEBUG]")
+            print("QUERY:", query)
+            print("EVIDENCE:", evidence_text[:300])
+            print("ANCHOR_PASS:", _has_required_anchor(query, evidence_text))
+
+        if ans and _has_required_anchor(query, evidence_text):
+            env["decision"] = "ANSWER"
+            env["answer"] = ans
+        else:
+            env["decision"] = "ABSTAIN"
+            env["passed_confidence_gate"] = False
+            env["reason"] = "Semantic absence: required concept not found in evidence"
+
+            env["suggested_queries"] = _suggested_queries(query)
+            env["how_to_improve"] = HOW_TO_IMPROVE
+
         return env
 
-    # No score found => low confidence
+    # No score found => ABSTAIN
     if best_score is None:
         if debug:
             print(f"[DAY67][{route_name}] No 'score' found; treating as low confidence.")
         env = _wrap(query, route_name, result, False, best_score, float(min_score) if min_score is not None else None)
-        env["answer"] = FALLBACK_MESSAGE
+        env["decision"] = "ABSTAIN"
+        env["answer"] = ""
         env["reason"] = "No score found in results"
         env["suggested_queries"] = _suggested_queries(query)
         env["how_to_improve"] = HOW_TO_IMPROVE
         env["evidence_preview"] = _extract_evidence_preview(result, n=1)
         return env
 
-    # Non-numeric score => low confidence
+    # Non-numeric score => ABSTAIN
     try:
         best_score_f = float(best_score)
     except Exception:
         if debug:
             print(f"[DAY67][{route_name}] Non-numeric score={best_score}; treating as low confidence.")
         env = _wrap(query, route_name, result, False, best_score, float(min_score) if min_score is not None else None)
-        env["answer"] = FALLBACK_MESSAGE
+        env["decision"] = "ABSTAIN"
+        env["answer"] = ""
         env["reason"] = "Non-numeric score in results"
         env["suggested_queries"] = _suggested_queries(query)
         env["how_to_improve"] = HOW_TO_IMPROVE
@@ -247,10 +342,11 @@ def _gate_if_low_confidence(query: str, result, min_score: float, debug: bool, r
     if (not is_rerank) and (min_score is not None) and (best_score_f < float(min_score)):
         if debug:
             print(
-                f"[DAY67][{route_name}] NO_ANSWER. best_score={best_score_f:.4f} < min_score={float(min_score):.4f}"
+                f"[DAY67][{route_name}] ABSTAIN. best_score={best_score_f:.4f} < min_score={float(min_score):.4f}"
             )
         env = _wrap(query, route_name, result, False, best_score_f, float(min_score))
-        env["answer"] = FALLBACK_MESSAGE
+        env["decision"] = "ABSTAIN"
+        env["answer"] = ""
         env["reason"] = "Not enough information found"
         env["suggested_queries"] = _suggested_queries(query)
         env["how_to_improve"] = HOW_TO_IMPROVE
@@ -268,10 +364,11 @@ def _gate_if_low_confidence(query: str, result, min_score: float, debug: bool, r
         if margin < min_margin:
             if debug:
                 print(
-                    f"[DAY69][{route_name}] NO_ANSWER. margin={margin:.4f} < min_margin={min_margin:.4f}"
+                    f"[DAY69][{route_name}] ABSTAIN. margin={margin:.4f} < min_margin={min_margin:.4f}"
                 )
             env = _wrap(query, route_name, result, False, top1, float(min_score) if min_score is not None else None)
-            env["answer"] = FALLBACK_MESSAGE
+            env["decision"] = "ABSTAIN"
+            env["answer"] = ""
             env["reason"] = "Low score dominance (ambiguous match)"
             env["suggested_queries"] = _suggested_queries(query)
             env["how_to_improve"] = HOW_TO_IMPROVE
@@ -279,7 +376,7 @@ def _gate_if_low_confidence(query: str, result, min_score: float, debug: bool, r
             env["score_margin"] = margin
             return env
 
-    # PASS
+    # PASS → build deterministic answer
     if debug:
         if top1 is not None and top2 is not None:
             min_margin = float(RERANK_MIN_MARGIN) if is_rerank else float(MIN_SCORE_MARGIN)
@@ -302,6 +399,18 @@ def _gate_if_low_confidence(query: str, result, min_score: float, debug: bool, r
     env["evidence_preview"] = _extract_evidence_preview(result, n=2)
     if top1 is not None and top2 is not None:
         env["score_margin"] = float(top1 - top2)
+
+    ans = _build_answer_no_llm(result)
+    if ans:
+        env["decision"] = "ANSWER"
+        env["answer"] = ans
+    else:
+        env["decision"] = "ABSTAIN"
+        env["passed_confidence_gate"] = False
+        env["reason"] = "No usable text in top evidence"
+        env["suggested_queries"] = _suggested_queries(query)
+        env["how_to_improve"] = HOW_TO_IMPROVE
+
     return env
 
 
@@ -373,7 +482,9 @@ if __name__ == "__main__":
         print(q, "=>", classify_query(q))
         out = run_query(q, top_k=3, alpha=0.2, use_reranker=True, min_score=0.35, debug=True)
         print(
-            "PASSED:",
+            "DECISION:",
+            out.get("decision"),
+            "| PASSED:",
             out.get("passed_confidence_gate"),
             "| BEST_SCORE:",
             out.get("best_score"),
@@ -383,4 +494,5 @@ if __name__ == "__main__":
         print("REASON:", out.get("reason"))
         print("SUGGESTED:", out.get("suggested_queries"))
         print("EVIDENCE:", out.get("evidence_preview"))
+        print("ANSWER_SNIP:", (out.get("answer") or "")[:180])
         print("-" * 60)
