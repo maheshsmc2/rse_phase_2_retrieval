@@ -5,7 +5,6 @@ import time
 from typing import Dict, Any, List
 
 from .retriever_v2 import dense_search
-import time
 from .trace_helpers import (
     init_trace,
     add_timing,
