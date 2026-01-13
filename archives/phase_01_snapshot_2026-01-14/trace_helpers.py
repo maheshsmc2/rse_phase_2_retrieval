@@ -30,6 +30,7 @@ def init_trace(query: str, meta: Optional[Dict[str, Any]] = None) -> Dict[str, A
             "hybrid": [],
             "rerank": [],
         },
+        "stages": {},  # optional debug previews (safe even if unused)
         "final": {
             "selected": [],   # list of chosen chunks/docs
             "answer": None,   # if you later add an answer builder

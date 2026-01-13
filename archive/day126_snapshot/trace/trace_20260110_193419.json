@@ -1,0 +1,42 @@
+{
+  "query": "Can employees work from home without approval?",
+  "meta": {
+    "route": "dense"
+  },
+  "created_at_unix": 1768041259.443553,
+  "timing_ms": {
+    "dense_ms": 9.473,
+    "total_ms": 9.482
+  },
+  "routes": {
+    "dense": [
+      {
+        "id": 0,
+        "score": -0.10213564336299896,
+        "text": "RAG systems retrieve relevant documents before generation. Dense embeddings capture semantic meaning.",
+        "meta": {
+          "source": "test.txt",
+          "chunk_i": 0
+        }
+      }
+    ],
+    "bm25": [],
+    "hybrid": [],
+    "rerank": []
+  },
+  "final": {
+    "selected": [
+      {
+        "id": 0,
+        "score": -0.10213564336299896,
+        "text": "RAG systems retrieve relevant documents before generation. Dense embeddings capture semantic meaning.",
+        "meta": {
+          "source": "test.txt",
+          "chunk_i": 0
+        }
+      }
+    ],
+    "answer": null,
+    "reason": "dense: score_ok=True, dominance_gap_ok=True"
+  }
+}

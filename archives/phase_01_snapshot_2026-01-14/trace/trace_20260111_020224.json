@@ -1,0 +1,42 @@
+{
+  "query": "what is paid leave policy?",
+  "meta": {
+    "route": "dense"
+  },
+  "created_at_unix": 1768064543.924375,
+  "timing_ms": {
+    "dense_ms": 640.646,
+    "total_ms": 641.047
+  },
+  "routes": {
+    "dense": [
+      {
+        "id": 0,
+        "score": 0.01459583267569542,
+        "text": "RAG systems retrieve relevant documents before generation. Dense embeddings capture semantic meaning.",
+        "meta": {
+          "source": "test.txt",
+          "chunk_i": 0
+        }
+      }
+    ],
+    "bm25": [],
+    "hybrid": [],
+    "rerank": []
+  },
+  "final": {
+    "selected": [
+      {
+        "id": 0,
+        "score": 0.01459583267569542,
+        "text": "RAG systems retrieve relevant documents before generation. Dense embeddings capture semantic meaning.",
+        "meta": {
+          "source": "test.txt",
+          "chunk_i": 0
+        }
+      }
+    ],
+    "answer": null,
+    "reason": "dense: score_ok=True, dominance_gap_ok=True"
+  }
+}

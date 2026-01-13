@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import time
 from typing import Dict, Any, List
+from .knobs_v2 import MIN_SCORE, MIN_DOMINANCE_GAP, RERANK_MIN_DOMINANCE_GAP
+
 
 from .retriever_v2 import dense_search
 from .trace_helpers import (
@@ -14,8 +16,6 @@ from .trace_helpers import (
 )
 
 
-MIN_SCORE = -0.5        # adjust later after inspecting scores
-MIN_DOMINANCE_GAP = 0.05
 
 def _preview(text: str, n: int = 160) -> str:
     t = (text or "").replace("\n", " ").strip()
@@ -107,3 +107,24 @@ def run_query_v2(query: str, route: str = "dense", top_k: int = 5) -> Dict[str, 
         "selected": selected,
         "trace_path": str(trace_path),
     }
+if __name__ == "__main__":
+    import json
+
+    q = input("Query> ").strip()
+    if not q:
+        raise SystemExit("Empty query")
+
+    # Try a few common function names used in this repo style.
+    # One of these should exist in the file.
+    if "run_query_v2" in globals():
+        out = run_query_v2(q)
+    elif "run_query" in globals():
+        out = run_query(q)
+    else:
+        raise SystemExit("No runnable function found (expected run_query_v2 or run_query).")
+
+    print("\n--- RESULT ---")
+    if isinstance(out, (dict, list)):
+        print(json.dumps(out, indent=2, ensure_ascii=False))
+    else:
+        print(out)

@@ -1,0 +1,43 @@
+{
+  "query": "paid leave policy",
+  "meta": {
+    "route": "dense",
+    "top_k": 5
+  },
+  "created_at_unix": 1767980291.828574,
+  "timing_ms": {
+    "dense_ms": 393.822,
+    "total_ms": 393.843
+  },
+  "routes": {
+    "dense": [
+      {
+        "id": 0,
+        "score": -0.017440415918827057,
+        "text": "RAG systems retrieve relevant documents before generation. Dense embeddings capture semantic meaning.",
+        "meta": {
+          "source": "test.txt",
+          "chunk_i": 0
+        }
+      }
+    ],
+    "bm25": [],
+    "hybrid": [],
+    "rerank": []
+  },
+  "final": {
+    "selected": [
+      {
+        "id": 0,
+        "score": -0.017440415918827057,
+        "text": "RAG systems retrieve relevant documents before generation. Dense embeddings capture semantic meaning.",
+        "meta": {
+          "source": "test.txt",
+          "chunk_i": 0
+        }
+      }
+    ],
+    "answer": null,
+    "reason": "dense: score_ok=True, dominance_gap_ok=True"
+  }
+}

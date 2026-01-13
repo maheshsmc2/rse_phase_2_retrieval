@@ -1,0 +1,87 @@
+[
+    {
+      "id": "d126_01",
+      "label": "ANSWERABLE",
+      "question": "How many days of paid leave are employees entitled to per year?",
+      "expected_answer_contains": ["20", "20 days"],
+      "notes": "Should find paid leave policy."
+    },
+    {
+      "id": "d126_02",
+      "label": "ANSWERABLE",
+      "question": "Who must approve leave requests?",
+      "expected_answer_contains": ["reporting manager", "manager"],
+      "notes": "Leave approval rule."
+    },
+    {
+      "id": "d126_03",
+      "label": "ANSWERABLE",
+      "question": "How many sick leave days can employees take annually?",
+      "expected_answer_contains": ["10", "10 days"],
+      "notes": "Sick leave allowance."
+    },
+    {
+      "id": "d126_04",
+      "label": "ANSWERABLE",
+      "question": "When is a medical certificate required for sick leave?",
+      "expected_answer_contains": ["longer than 2 days", "more than 2 days", "absences longer than 2 days"],
+      "notes": "Medical certificate condition."
+    },
+    {
+      "id": "d126_05",
+      "label": "ANSWERABLE",
+      "question": "How many days per week can employees work from home (WFH)?",
+      "expected_answer_contains": ["3 days", "3"],
+      "notes": "WFH cap for employees."
+    },
+    {
+      "id": "d126_06",
+      "label": "ANSWERABLE",
+      "question": "How many days per week can interns work from home?",
+      "expected_answer_contains": ["1 day", "1"],
+      "notes": "WFH cap for interns."
+    },
+    {
+      "id": "d126_07",
+      "label": "ANSWERABLE",
+      "question": "For domestic travel bookings, what class is required?",
+      "expected_answer_contains": ["economy", "economy class"],
+      "notes": "Domestic travel rule."
+    },
+    {
+      "id": "d126_08",
+      "label": "ANSWERABLE",
+      "question": "Is business class allowed for domestic travel?",
+      "expected_answer_contains": ["not allowed", "not", "is not allowed"],
+      "notes": "Domestic business class restriction."
+    },
+    {
+      "id": "d126_09",
+      "label": "UNANSWERABLE",
+      "question": "How many days of maternity leave are provided?",
+      "expected_answer_contains": [],
+      "notes": "Not in the sample policy text."
+    },
+    {
+      "id": "d126_10",
+      "label": "UNANSWERABLE",
+      "question": "What is the notice period for resignation?",
+      "expected_answer_contains": [],
+      "notes": "Not present in sample text."
+    },
+    {
+      "id": "d126_11",
+      "label": "UNANSWERABLE",
+      "question": "What is the employee pension contribution percentage?",
+      "expected_answer_contains": [],
+      "notes": "Should force refusal."
+    },
+    {
+      "id": "d126_12",
+      "label": "AMBIGUOUS",
+      "question": "Can employees work from home without approval?",
+      "expected_answer_contains": ["prior approval", "approval"],
+      "notes": "Policy says with prior approval; user phrasing invites a wrong yes/no."
+    }
+  ]
+  

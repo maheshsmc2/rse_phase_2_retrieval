@@ -73,6 +73,7 @@ def dense_search(query: str, top_k: int = DEFAULT_TOP_K) -> List[Dict[str, Any]]
         doc = _DOCSTORE[int(idx)]
         results.append(
             {
+                "id": int(idx),  # stable: FAISS id == docstore row
                 "score": float(score),
                 "text": doc.get("text"),
                 "source": doc.get("source"),
