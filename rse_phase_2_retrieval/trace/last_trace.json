@@ -1,0 +1,31 @@
+{
+  "query": "leave policy",
+  "top_k": 5,
+  "hits": [
+    {
+      "id": "doc1",
+      "score": -0.0026843082159757614,
+      "text_preview": "FAISS is a library for efficient similarity search over dense vectors."
+    },
+    {
+      "id": "doc2",
+      "score": -0.00835425779223442,
+      "text_preview": "RAG systems retrieve documents using embeddings before generating answers."
+    },
+    {
+      "id": "doc3",
+      "score": -0.05377953499555588,
+      "text_preview": "Yokohama is a city in Kanagawa Prefecture near Tokyo."
+    },
+    {
+      "id": "doc3",
+      "score": -3.4028234663852886e+38,
+      "text_preview": "Yokohama is a city in Kanagawa Prefecture near Tokyo."
+    },
+    {
+      "id": "doc3",
+      "score": -3.4028234663852886e+38,
+      "text_preview": "Yokohama is a city in Kanagawa Prefecture near Tokyo."
+    }
+  ]
+}
