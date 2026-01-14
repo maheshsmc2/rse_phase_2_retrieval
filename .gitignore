@@ -22,3 +22,7 @@ __pycache__/
 .env
 .venv/
 .DS_Store
+# Phase 1 legacy execution leftovers
+ragcore_v2/indexing/
+ragcore_v2/src/*.py
+ragcore_v2/src/__pycache__/
