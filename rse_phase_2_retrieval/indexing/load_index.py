@@ -8,7 +8,7 @@ from typing import Any, Dict, Tuple
 import faiss
 
 # Reuse Phase-1 index for now (fastest path to "Phase-2 alive")
-DEFAULT_INDEX_DIR = Path("ragcore_v2/data/indexes")
+DEFAULT_INDEX_DIR = Path("rse_phase_2_retrieval/data/indexes")
 
 
 def load_faiss_bundle(index_dir: Path = DEFAULT_INDEX_DIR) -> Tuple[faiss.Index, Dict[str, Any]]:
