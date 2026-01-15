@@ -2,4 +2,8 @@ __pycache__/
 *.pyc
 .venv/
 .DS_Store
+trace/
 trace_phase3/
+rse_phase_2_retrieval/trace/
+
+
