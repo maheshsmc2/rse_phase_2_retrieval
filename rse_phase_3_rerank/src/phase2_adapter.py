@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List
 import importlib.util
+# Phase 2 retrieval entrypoint (Phase 2 remains untouched)
+from ragcore_v2.src.retriever_v2 import dense_search
 
 
 @dataclass
@@ -62,3 +64,4 @@ def get_phase2_topk(query: str, *, top_k: int = 10, route: str = "dense") -> Lis
         raise TypeError(f"dense_search expected list of hits, got: {type(raw_hits)}")
 
     return [_coerce_hit(h) for h in raw_hits]
+
